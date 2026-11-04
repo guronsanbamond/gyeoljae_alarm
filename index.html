@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>결재 알림 설치 도우미</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* 레이아웃: 왼쪽 단계 목록(휴대폰에선 위쪽 가로 띠) + 오른쪽 한 단계씩 넘기는 카드 */
+:root{
+  --bg:#f3f5f2; --panel:#ffffff; --ink:#1f2a27; --muted:#5d6b66; --line:#d9e0dc;
+  --accent:#1d6b5c; --accent-ink:#ffffff; --accent-soft:#e3efeb;
+  --warn:#9a5a00; --warn-soft:#fbf1df; --code-bg:#1e2624; --code-ink:#e6efe9;
+  --f-display:"Gowun Batang","Noto Serif KR",serif;
+  --f-body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",Consolas,"D2Coding",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a18; --panel:#1c2421; --ink:#e7eeeb; --muted:#9fb0aa; --line:#2f3b37;
+  --accent:#5fbfa8; --accent-ink:#0e1614; --accent-soft:#1f3530;
+  --warn:#f0b35a; --warn-soft:#352a17; --code-bg:#0e1311; --code-ink:#dfe9e4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a18; --panel:#1c2421; --ink:#e7eeeb; --muted:#9fb0aa; --line:#2f3b37;
+  --accent:#5fbfa8; --accent-ink:#0e1614; --accent-soft:#1f3530;
+  --warn:#f0b35a; --warn-soft:#352a17; --code-bg:#0e1311; --code-ink:#dfe9e4; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.7;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1040px;margin:0 auto;display:grid;grid-template-columns:250px minmax(0,1fr);gap:28px;align-items:start}
+header.top{max-width:1040px;margin:0 auto 22px}
+header.top h1{font-family:var(--f-display);font-size:1.9rem;line-height:1.3;margin:0;text-wrap:balance}
+header.top p{margin:.3rem 0 0;color:var(--muted)}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:14px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+nav.steps{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:2px}
+nav.steps button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;color:var(--muted);font-size:.95rem}
+nav.steps button:hover{background:var(--accent-soft)}
+nav.steps button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.steps button[aria-current="step"]{background:var(--accent-soft);color:var(--ink);font-weight:700}
+.dot{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums}
+[aria-current="step"] .dot{border-color:var(--accent);color:var(--accent)}
+.done .dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+main.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px 30px;min-width:0}
+.where{display:inline-block;font-size:.78rem;letter-spacing:.06em;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:99px;margin-bottom:8px}
+main h2{font-family:var(--f-display);font-size:1.55rem;line-height:1.35;margin:0 0 6px;text-wrap:balance}
+.lead{color:var(--muted);margin:0 0 18px}
+ol.do{list-style:none;padding:0;margin:0 0 18px;display:flex;flex-direction:column;gap:12px;counter-reset:n}
+ol.do>li{counter-increment:n;display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px}
+ol.do>li::before{content:counter(n);width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--panel);display:grid;place-items:center;font-size:.85rem;font-weight:700;margin-top:1px}
+b,strong{font-weight:700}
+kbd{font-family:var(--f-mono);font-size:.85em;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;background:var(--bg)}
+.ui{font-weight:700;background:var(--accent-soft);padding:0 6px;border-radius:4px}
+.tip,.warn{border-radius:10px;padding:12px 16px;margin:0 0 16px;font-size:.95rem}
+.tip{background:var(--accent-soft)}
+.warn{background:var(--warn-soft);color:var(--ink)}
+.warn b{color:var(--warn)}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;font-weight:700;font-size:.95rem;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a.btn{text-decoration:none}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 16px}
+.big{font-family:var(--f-mono);font-size:1.45rem;font-weight:500;letter-spacing:.02em;background:var(--bg);border:2px dashed var(--accent);border-radius:10px;padding:14px 18px;word-break:break-all;margin:0 0 12px}
+label{font-weight:700;font-size:.92rem}
+input[type=text]{font:inherit;font-family:var(--f-mono);padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:min(260px,100%)}
+input:focus-visible{outline:2px solid var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:0 0 14px}
+.seg button{all:unset;cursor:pointer;padding:8px 18px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+pre.code{background:var(--code-bg);color:var(--code-ink);font-family:var(--f-mono);font-size:.78rem;line-height:1.55;padding:16px;border-radius:10px;max-height:300px;overflow:auto;margin:0 0 14px;white-space:pre}
+.hl{background:#f0b35a;color:#1b1406;border-radius:3px;padding:0 2px}
+table{border-collapse:collapse;width:100%;font-size:.93rem;margin:0 0 16px}
+.tw{overflow-x:auto}
+th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+th{font-size:.8rem;letter-spacing:.05em;color:var(--muted)}
+.check{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin:6px 0 0;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+footer.nav{display:flex;justify-content:space-between;gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.qrbox{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}
+.qr{background:#fff;padding:10px;border-radius:10px;line-height:0;border:1px solid var(--line)}
+.qr img,.qr canvas{width:150px;height:150px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 18px;border-radius:9px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+.status{font-family:var(--f-mono);font-size:.82rem;background:#222;color:#fff;border-radius:8px;padding:10px 14px;line-height:1.6;display:inline-block;margin:0 0 14px}
+@media (max-width:760px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:14px}
+  nav.steps{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  nav.steps button span.t{display:none}
+  nav.steps button[aria-current="step"] span.t{display:inline;white-space:nowrap}
+  main.card{padding:20px 18px}
+  header.top h1{font-size:1.55rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <h1>업무포털 결재 알림 설치 도우미</h1>
+  <p>화면에 나오는 순서대로 하나씩 따라 하시면 됩니다. 약 15분 걸립니다.</p>
+  <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+</header>
+
+<div class="wrap">
+  <nav class="steps" id="nav" aria-label="설치 단계"></nav>
+  <main class="card" id="card" tabindex="-1"></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="text/plain" id="code">
+// ==UserScript==
+// @name         업무포털 결재 알림
+// @namespace    gne-eduptl-alarm
+// @version      1.4
+// @description  업무포털 메인 화면을 1분마다 확인해 결재·메모·메일 등이 있으면 PC 음성 안내(조용한 시간·공휴일 제외) + 휴대폰(ntfy) 알림(새로 생겼을 때 한 번)
+// @match        https://gne.eduptl.kr/bpm_man_mn00_001.do*
+// @grant        none
+// @run-at       document-idle
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  // ===== 설정 (숫자만 바꾸면 됩니다) =====
+  const TOPIC = 'https://ntfy.sh/여기에-내-채널이름'; // ★ 휴대폰 ntfy 채널 이름으로 바꾸기
+  const CHECK_MIN = 1;          // 확인 간격(분)
+  const EXTEND_UNDER_MIN = 10;  // 남은 로그인 시간이 이보다 적으면 자동 연장(분)
+  const QUIET_START = 20;       // PC 음성 끄는 시작 시각 (20시)
+  const QUIET_END = 7;          // PC 음성 다시 켜는 시각 (7시)
+  const QUIET_WEEKEND = true;   // 토·일 내내 PC 음성 끔
+  const QUIET_HOLIDAY = true;   // 공휴일(대체공휴일 포함) 내내 PC 음성 끔
+  // =====================================
+
+  // ===== 공휴일 자동 계산 (해마다 손댈 필요 없음) =====
+  // 설날·부처님오신날·추석은 크롬의 음력 계산 기능으로 구하고, 대체공휴일 규칙도 적용합니다.
+  const _holCache = {};
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function holidaysOf(Y) {
+    if (_holCache[Y]) return _holCache[Y];
+    const fmt = new Intl.DateTimeFormat('en-u-ca-chinese', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' });
+    const lunarDay = {}; // '1-1' → 양력 날짜
+    for (let d = new Date(Y, 0, 1); d.getFullYear() === Y; d.setDate(d.getDate() + 1)) {
+      const p = {};
+      fmt.formatToParts(d).forEach(x => { p[x.type] = x.value; });
+      if (/^\d+$/.test(p.month)) lunarDay[p.month + '-' + p.day] = new Date(d);
+    }
+    const shift = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+    const list = []; // [날짜, 대체 규칙] — W: 토·일·겹침 시 대체, S: 일요일·겹침 시 대체, N: 대체 없음
+    const add = (d, rule) => { if (d) list.push([d, rule]); };
+    add(new Date(Y, 0, 1), 'N');                 // 신정
+    add(new Date(Y, 2, 1), 'W');                 // 삼일절
+    add(new Date(Y, 4, 5), 'W');                 // 어린이날
+    add(new Date(Y, 5, 6), 'N');                 // 현충일
+    add(new Date(Y, 6, 17), 'W');                // 제헌절
+    add(new Date(Y, 7, 15), 'W');                // 광복절
+    add(new Date(Y, 9, 3), 'W');                 // 개천절
+    add(new Date(Y, 9, 9), 'W');                 // 한글날
+    add(new Date(Y, 11, 25), 'W');               // 성탄절
+    const seol = lunarDay['1-1'], chu = lunarDay['8-15'];
+    if (seol) [-1, 0, 1].forEach(n => add(shift(seol, n), 'S'));   // 설날 연휴
+    add(lunarDay['4-8'], 'W');                   // 부처님오신날
+    if (chu) [-1, 0, 1].forEach(n => add(shift(chu, n), 'S'));     // 추석 연휴
+    list.sort((a, b) => a[0] - b[0]);
+
+    const set = new Set(), seen = {};
+    let need = []; // 대체공휴일이 필요한 원래 날짜
+    list.forEach(([d, rule]) => {
+      const k = ymd(d), w = d.getDay();
+      const overlap = seen[k];
+      seen[k] = true;
+      set.add(k);
+      if (rule === 'N') return;
+      if (overlap || w === 0 || (rule === 'W' && w === 6)) need.push(d);
+    });
+    // 대체공휴일: 설·추석은 연휴가 끝난 뒤, 나머지는 그날 다음의 첫 평일(공휴일 아닌 날)
+    need.forEach(d => {
+      let x = new Date(d);
+      do { x = shift(x, 1); } while (x.getDay() === 0 || x.getDay() === 6 || set.has(ymd(x)));
+      set.add(ymd(x));
+    });
+    return (_holCache[Y] = set);
+  }
+  function holiday() {
+    const d = new Date();
+    try { return QUIET_HOLIDAY && holidaysOf(d.getFullYear()).has(ymd(d)); } catch (e) { return false; }
+  }
+
+  // 지금이 조용한 시간인지 확인
+  function quiet() {
+    const d = new Date(), h = d.getHours(), w = d.getDay();
+    return (QUIET_WEEKEND && (w === 0 || w === 6)) || holiday() || h >= QUIET_START || h < QUIET_END;
+  }
+
+  // 화면에서 항목 값 읽기
+  function val(label) {
+    const li = [...document.querySelectorAll('.mct-top-area li')]
+      .find(l => l.innerText.replace(/\s+/g, ' ').trim().startsWith(label));
+    return li ? li.innerText.replace(label, '').replace(/\s+/g, '').trim() : '';
+  }
+
+  // "3(1)" 형태를 [3, 1]로
+  function pair(v) {
+    const m = (v || '').match(/(\d+)\((\d+)\)/);
+    return m ? [+m[1], +m[2]] : [0, 0];
+  }
+
+  // PC 음성 안내 (조용한 시간에는 안 함)
+  function say(t) {
+    if (quiet()) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = 'ko-KR';
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  let status = '-', lastExt = '-', lastPush = '-', lastCheck = '-', warned = false, prev = {};
+  let timerCheck = null, timerSession = null;
+
+  // 휴대폰 알림 (시간 제한 없음)
+  function push(msg) {
+    fetch(TOPIC, {
+      method: 'POST',
+      headers: { 'Priority': 'urgent', 'Tags': 'bell' },
+      body: msg
+    }).then(r => {
+      lastPush = new Date().toLocaleTimeString('ko-KR') + (r.ok ? ' 전송' : ' 실패');
+      render();
+    }).catch(() => { lastPush = '전송 실패'; render(); });
+  }
+
+  // 남은 로그인 시간(초)
+  function left() {
+    const m = document.body.innerText.match(/(\d+):(\d+)\s*후에\s*로그아웃/);
+    return m ? (+m[1]) * 60 + (+m[2]) : null;
+  }
+
+  // 오른쪽 아래 상태 상자
+  const box = document.createElement('div');
+  box.id = '__monbox';
+  box.style.cssText = 'position:fixed;right:110px;bottom:20px;z-index:99999;background:#222;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.5;box-shadow:0 2px 8px #0008';
+  document.body.appendChild(box);
+
+  function render() {
+    const mode = quiet() ? (holiday() ? '🌙 공휴일 (음성 꺼짐, 휴대폰만)' : '🌙 조용한 시간 (음성 꺼짐, 휴대폰만)') : '🔔 결재 알림 작동 중 (음성+휴대폰)';
+    box.innerHTML = mode +
+      '<br>마지막 확인: ' + lastCheck +
+      '<br>' + status +
+      '<br>로그인 연장: ' + lastExt +
+      '<br>휴대폰 알림: ' + lastPush +
+      '<br><button id="__monstop" style="margin-top:4px">중지</button>';
+    document.getElementById('__monstop').onclick = () => {
+      clearInterval(timerCheck);
+      clearInterval(timerSession);
+      speechSynthesis.cancel();
+      box.remove();
+    };
+  }
+
+  // 로그인 유지 확인
+  function session() {
+    const l = left();
+    if ((l === null || l <= 90) && !warned) {
+      const w = '곧 로그아웃됩니다. 업무포털을 확인해 주세요.';
+      say(w);
+      push(w);
+      warned = true;
+    }
+    if (l !== null && l < EXTEND_UNDER_MIN * 60) {
+      document.querySelector('.session-info .btn-refresh')?.click();
+      lastExt = new Date().toLocaleTimeString('ko-KR');
+      setTimeout(() => {
+        const n = left();
+        if (n !== null && n > l) warned = false;
+      }, 3000);
+    }
+    render();
+  }
+
+  // "세션종료까지 ... 연장하시겠습니까?" 창이 뜨면 자동으로 [확인] 누르기
+  function autoConfirm() {
+    const msg = document.getElementById('swal2-html-container');
+    if (!msg || !/세션종료까지[\s\S]*연장/.test(msg.innerText || '')) return;
+    const btn = document.querySelector('.swal2-popup .swal2-confirm');
+    if (btn && btn.offsetParent !== null) {
+      btn.click();
+      lastExt = new Date().toLocaleTimeString('ko-KR') + ' (창 확인)';
+      warned = false;
+      render();
+    }
+  }
+
+  // 결재 등 확인
+  function check() {
+    const [a, ae] = pair(val('결재(긴급)'));
+    const [b, be] = pair(val('메모(긴급)'));
+    let ds = 0;
+    ['내부승인(요청)', '카드권한(요청)', '데이터취합(내담당)', '내부승인(처리)', '카드권한(처리)', '설문']
+      .forEach(k => { ds += parseInt(val(k)) || 0; });
+
+    const cur = {
+      '나이스 미결/협조': parseInt(val('미결/협조함')) || 0,
+      '결재': a,
+      '긴급 결재': ae,
+      '메모': b,
+      '긴급 메모': be,
+      '메일': parseInt(val('메일')) || 0,
+      '데이터통합관리 알림': ds
+    };
+
+    const words = Object.entries(cur).filter(([k, v]) => v > 0).map(([k, v]) => k + ' ' + v + '건');
+    const isNew = Object.keys(cur).some(k => cur[k] > (prev[k] || 0));
+    prev = cur;
+
+    lastCheck = new Date().toLocaleTimeString('ko-KR');
+    status = words.length ? '<b style="color:#ff6">알림: ' + words.join(', ') + '</b>' : '해당 없음';
+    render();
+
+    if (words.length) {
+      say(words.join(', ') + '이 있습니다. 확인해 주세요.');           // PC: 1분마다 (조용한 시간·공휴일 제외)
+      if (isNew) push('업무포털: ' + words.join(', ') + '이 있습니다.'); // 휴대폰: 새로 생겼을 때 한 번
+    }
+  }
+
+  function run() {
+    ['btnRefreshNeisAprvWork', 'btnRefreshKedu', 'btnRefreshEdmgr']
+      .forEach(id => document.getElementById(id)?.click());
+    setTimeout(check, 5000);
+  }
+
+  render();
+  setTimeout(() => {
+    timerCheck = setInterval(run, CHECK_MIN * 60 * 1000);
+    timerSession = setInterval(session, 30 * 1000);
+    setInterval(autoConfirm, 2000); // 2초마다 연장 창 확인
+    run();
+    session();
+  }, 5000); // 화면이 다 뜬 뒤 시작
+})();
+</script>
+<script>
+(function(){
+const PLACE='여기에-내-채널이름';
+const CODE=document.getElementById('code').textContent.replace(/^\n/,'');
+const S={step:0,done:{},topic:'',phone:'android'};
+try{Object.assign(S,JSON.parse(localStorage.getItem('gyeoljae-wiz')||'{}'));}catch(e){}
+function save(){try{localStorage.setItem('gyeoljae-wiz',JSON.stringify(S));}catch(e){}}
+
+function rand(n){const a='abcdefghjkmnpqrstuvwxyz23456789';const r=new Uint32Array(n);crypto.getRandomValues(r);return [...r].map(x=>a[x%a.length]).join('');}
+function makeTopic(pre){pre=(pre||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,10);return 'gne-'+(pre?pre+'-':'')+'gyeoljae-'+rand(7);}
+if(!S.topic) {S.topic=makeTopic('');save();}
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1800);}
+function copy(text,msg){
+  const ok=()=>toast(msg||'복사했습니다');
+  const fall=()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    let s=false;try{s=document.execCommand('copy');}catch(e){} ta.remove(); s?ok():toast('복사가 안 됩니다. 글자를 직접 드래그해 복사해 주세요');};
+  try{navigator.clipboard.writeText(text).then(ok,fall);}catch(e){fall();}
+}
+function myCode(){return CODE.replace(PLACE,S.topic);}
+
+const where={pc:'PC에서',phone:'휴대폰에서',both:'PC와 휴대폰'};
+const STEPS=[
+{t:'시작하기',w:'pc',h:()=>`
+  <h2>무엇을 설치하나요?</h2>
+  <p class="lead">업무포털을 켜 두면, 결재·메모·메일이 생겼을 때 PC가 음성으로 알려 주고 휴대폰으로도 알림이 옵니다.</p>
+  <div class="tw"><table>
+    <tr><th>알림</th><th>언제 울리나요</th></tr>
+    <tr><td><b>PC 음성</b></td><td>결재 등이 있으면 1분마다 안내<br>평일 20:00~다음 날 07:00, 토·일·공휴일(대체공휴일 포함)은 조용히</td></tr>
+    <tr><td><b>휴대폰</b></td><td>새 결재가 생기거나 건수가 늘 때 <b>한 번만</b><br>밤에도 옵니다. 같은 건으로 반복해서 울리지 않습니다.</td></tr>
+    <tr><td><b>로그인 유지</b></td><td>자동 로그아웃 전에 알아서 연장합니다.</td></tr>
+  </table></div>
+  <p><b>준비물</b></p>
+  <ol class="do">
+    <li><div>이 화면을 <b>업무용 PC의 크롬(Chrome)</b>에서 열어 주세요.</div></li>
+    <li><div>스마트폰을 옆에 두세요. (안드로이드, 아이폰 모두 됩니다)</div></li>
+  </ol>
+  <div class="tip">모두 무료입니다. 한 번 설치하면 AI(클로드) 없이도 계속 작동합니다.</div>`},
+{t:'탬퍼몽키 설치',w:'pc',h:()=>`
+  <h2>크롬에 탬퍼몽키를 설치합니다</h2>
+  <p class="lead">탬퍼몽키는 업무포털을 열 때 알림 기능을 자동으로 켜 주는 크롬 확장 프로그램입니다.</p>
+  <ol class="do">
+    <li><div>아래 버튼을 누르면 크롬 웹스토어의 탬퍼몽키 페이지가 새 탭으로 열립니다.
+      <div class="row" style="margin-top:8px"><a class="btn" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">탬퍼몽키 페이지 열기 ↗</a></div></div></li>
+    <li><div>제작자가 <b>tampermonkey.net</b>인지 확인합니다. 이름이 비슷한 다른 프로그램이 있으니 주의하세요.</div></li>
+    <li><div>파란색 <span class="ui">Chrome에 추가</span> → <span class="ui">확장 프로그램 추가</span>를 누릅니다.</div></li>
+    <li><div>크롬 오른쪽 위 <b>퍼즐 모양</b> 아이콘을 누르고, 탬퍼몽키 옆 <b>압정(핀)</b>을 눌러 고정해 두면 다음 단계가 편합니다.</div></li>
+  </ol>`},
+{t:'사용 허용 켜기',w:'pc',h:()=>`
+  <h2>탬퍼몽키 사용을 허용합니다</h2>
+  <p class="lead">이 설정을 빠뜨리면 코드를 넣어도 작동하지 않습니다. 가장 많이 빠뜨리는 단계입니다.</p>
+  <ol class="do">
+    <li><div>아래 주소를 복사해 크롬 <b>주소창</b>에 붙여 넣고 <kbd>Enter</kbd>를 누릅니다.
+      <div class="row" style="margin-top:8px"><code class="big" style="font-size:1.05rem;margin:0;padding:8px 14px">chrome://extensions</code><button class="btn ghost" data-copy="chrome://extensions">주소 복사</button></div>
+      <small style="color:var(--muted)">보안상 이 주소는 버튼으로 바로 열 수 없어서 직접 붙여 넣어야 합니다.</small></div></li>
+    <li><div>화면 <b>오른쪽 위</b>의 <span class="ui">개발자 모드</span> 스위치를 켭니다.</div></li>
+    <li><div>탬퍼몽키 칸의 <span class="ui">세부정보</span>를 누릅니다.</div></li>
+    <li><div><span class="ui">사용자 스크립트 허용</span> 스위치를 켭니다. (파란색이 되면 켜진 것)</div></li>
+  </ol>
+  <div class="tip">"사용자 스크립트 허용" 항목이 안 보이면 크롬 버전에 따라 2번만으로 충분한 경우입니다. 그대로 다음 단계로 가셔도 됩니다.</div>`},
+{t:'내 채널 이름',w:'pc',h:()=>`
+  <h2>내 알림 채널 이름을 정합니다</h2>
+  <p class="lead">휴대폰 알림은 <b>ntfy</b>라는 무료 앱으로 받습니다. 채널 이름이 비밀번호 역할을 하므로 <b>사람마다 달라야</b> 합니다. 아래 이름은 이 화면이 자동으로 만들어 드린 것입니다.</p>
+  <div class="big" id="topicBig">${esc(S.topic)}</div>
+  <div class="row"><button class="btn" data-copy-topic>이름 복사</button><button class="btn ghost" id="regen">다른 이름으로 다시 만들기</button></div>
+  <div class="row"><label for="pre">이름 앞에 넣을 영문 이니셜 (선택)</label><input type="text" id="pre" placeholder="예: kim" maxlength="10" autocomplete="off"><button class="btn ghost" id="apply">적용</button></div>
+  <div class="warn"><b>꼭 지켜 주세요.</b> 이 이름을 종이에 적어 두세요. 다음 단계에서 휴대폰에 똑같이 입력합니다. 다른 사람에게 알려 주면 그 사람도 내 알림을 볼 수 있습니다.</div>
+  <div class="tip">이 화면은 이름을 이 PC의 크롬에 기억해 둡니다. 나중에 다시 열어도 같은 이름이 나옵니다.</div>`},
+{t:'휴대폰 앱 설치',w:'phone',h:()=>`
+  <h2>휴대폰에 ntfy 앱을 설치하고 구독합니다</h2>
+  <p class="lead">이제 휴대폰을 손에 드세요.</p>
+  <div class="seg" role="group" aria-label="휴대폰 종류">
+    <button data-phone="android" aria-pressed="${S.phone==='android'}">안드로이드 (갤럭시 등)</button>
+    <button data-phone="iphone" aria-pressed="${S.phone==='iphone'}">아이폰</button>
+  </div>
+  <ol class="do">
+    <li><div>${S.phone==='android'?'<b>플레이스토어</b>':'<b>앱스토어</b>'}에서 <b>ntfy</b>를 검색해 설치합니다.</div></li>
+    <li><div>앱을 열고 ${S.phone==='android'?'오른쪽 아래 <span class="ui">+</span>':'오른쪽 위 <span class="ui">+</span>'} 버튼을 누릅니다.</div></li>
+    <li><div><b>Topic name</b> 칸에 내 채널 이름을 넣습니다. <b>직접 치지 않아도 됩니다.</b>
+      <div class="qrbox"><div class="qr" id="qr" aria-label="채널 이름 QR코드"></div>
+      <div style="min-width:0;flex:1"><b>쉬운 방법</b><br>휴대폰 <b>카메라</b>로 왼쪽 QR코드를 비추면 이름이 글자로 뜹니다. 그 글자를 길게 눌러 <b>복사</b> → ntfy의 Topic name 칸을 길게 눌러 <b>붙여넣기</b>.</div></div>
+      <div class="big" style="margin-top:8px">${esc(S.topic)}</div><small style="color:var(--muted)">QR이 안 되면 위 글자를 그대로 입력하세요.</small></div></li>
+    <li><div>서버 주소는 그대로 두고 <span class="ui">Subscribe</span>(구독)를 누릅니다.</div></li>
+    <li><div>알림 권한을 물으면 <span class="ui">허용</span>을 누릅니다.</div></li>
+    ${S.phone==='android'
+      ?'<li><div>"배터리 최적화 제외"를 물으면 <span class="ui">허용</span>을 누릅니다. 알림이 늦게 오는 것을 막아 줍니다.</div></li><li><div>소리가 안 나면: 설정 → 애플리케이션 → ntfy → 알림 → 소리 켜기</div></li>'
+      :'<li><div>소리가 안 나면: 설정 → 알림 → ntfy → 사운드 켜기</div></li>'}
+  </ol>
+  <div class="tip">카메라로 QR이 안 읽히면, 이름을 카카오톡 "나와의 채팅"으로 보내 놓고 휴대폰에서 복사해 붙여 넣어도 됩니다.</div>`},
+{t:'시험 알림 보내기',w:'pc',h:()=>`
+  <h2>휴대폰으로 시험 알림을 보내 봅니다</h2>
+  <p class="lead">설치 전에 휴대폰 쪽이 제대로 되었는지 먼저 확인합니다.</p>
+  <ol class="do">
+    <li><div>아래 버튼을 누르면 내 채널의 ntfy 웹페이지가 새 탭으로 열립니다.
+      <div class="row" style="margin-top:8px"><a class="btn" id="ntfyLink" href="https://ntfy.sh/${encodeURIComponent(S.topic)}" target="_blank" rel="noopener">내 채널 열기 ↗</a></div></div></li>
+    <li><div>열린 화면 아래쪽 입력 칸에 <b>시험</b>이라고 쓰고 <span class="ui">보내기 버튼(종이비행기)</span>을 누릅니다.</div></li>
+    <li><div>휴대폰에 "시험" 알림이 오면 성공입니다.</div></li>
+  </ol>
+  <div class="warn"><b>알림이 안 오면</b> 휴대폰 앱의 채널 이름이 위 이름과 정확히 같은지 다시 확인해 주세요. 띄어쓰기나 대문자가 들어가면 다른 채널이 됩니다.</div>`},
+{t:'코드 붙여 넣기',w:'pc',h:()=>`
+  <h2>알림 코드를 탬퍼몽키에 넣습니다</h2>
+  <p class="lead">아래 코드에는 <b>내 채널 이름이 이미 들어가 있습니다</b>(노란색 부분). 고칠 것 없이 복사해서 붙여 넣기만 하면 됩니다.</p>
+  <div class="row"><button class="btn" id="copyCode">코드 전체 복사</button></div>
+  <pre class="code" id="codeView"></pre>
+  <ol class="do">
+    <li><div>위 <span class="ui">코드 전체 복사</span> 버튼을 누릅니다.</div></li>
+    <li><div>크롬 오른쪽 위 <b>퍼즐 모양</b>(또는 고정해 둔 탬퍼몽키 아이콘) → <span class="ui">새 스크립트 만들기</span>를 누릅니다.</div></li>
+    <li><div>열린 편집 화면을 한 번 클릭하고 <kbd>Ctrl</kbd>+<kbd>A</kbd> → <kbd>Delete</kbd>로 원래 있던 내용을 <b>모두 지웁니다</b>.</div></li>
+    <li><div><kbd>Ctrl</kbd>+<kbd>V</kbd>로 붙여 넣고, <kbd>Ctrl</kbd>+<kbd>S</kbd>로 저장합니다.</div></li>
+  </ol>
+  <div class="warn"><b>스크립트는 하나만.</b> 이미 설치한 적이 있다면 새로 만들지 말고, 탬퍼몽키 <span class="ui">대시보드</span>에서 기존 "업무포털 결재 알림"을 열어 내용을 바꿔 주세요. 두 개가 켜져 있으면 알림이 두 번씩 옵니다.</div>`},
+{t:'작동 확인',w:'pc',h:()=>`
+  <h2>업무포털에서 작동을 확인합니다</h2>
+  <ol class="do">
+    <li><div>업무포털에 <b>평소처럼 로그인</b>합니다. (이미 열려 있으면 <kbd>F5</kbd>로 새로고침)</div></li>
+    <li><div>메인 화면이 뜨고 약 5초 뒤, <b>오른쪽 아래에 검은 상자</b>가 나타나면 성공입니다.
+      <div style="margin-top:8px"><span class="status">🔔 결재 알림 작동 중 (음성+휴대폰)<br>마지막 확인: 오전 9:02:15<br>해당 없음<br>로그인 연장: -<br>휴대폰 알림: -</span><br><small style="color:var(--muted)">↑ 이런 모양입니다 (예시)</small></div></div></li>
+    <li><div>화면 아무 곳이나 <b>한 번 클릭</b>합니다. 크롬 규칙상 클릭해야 음성이 나옵니다.</div></li>
+  </ol>
+  <p><b>평소 사용할 때</b></p>
+  <ol class="do">
+    <li><div><b>업무포털 메인 화면 탭 하나는 열어 두세요.</b> 결재 처리는 새 탭에서 하면 알림이 끊기지 않습니다.</div></li>
+    <li><div>퇴근 후에도 알림을 받으려면 <b>PC와 크롬을 켜 둡니다.</b></div></li>
+    <li><div>업무포털을 껐다 켜면 로그인만 직접 하면 됩니다. 알림은 자동으로 다시 시작됩니다.</div></li>
+  </ol>`},
+{t:'문제 해결',w:'pc',h:()=>`
+  <h2>안 될 때 확인할 것</h2>
+  <div class="tw"><table>
+    <tr><th>증상</th><th>확인할 것</th></tr>
+    <tr><td><b>검은 상자가 안 뜸</b></td><td>③단계 "사용 허용"이 켜져 있는지 → 탬퍼몽키 대시보드에서 스크립트가 켜짐인지 → 업무포털 <b>메인 화면</b>에서 <kbd>F5</kbd></td></tr>
+    <tr><td><b>음성이 안 나옴</b></td><td>화면을 한 번 클릭했는지, 조용한 시간(평일 20~07시, 주말·공휴일)인지, 스피커 음량</td></tr>
+    <tr><td><b>휴대폰 알림이 안 옴</b></td><td>검은 상자의 "휴대폰 알림"이 <b>전송 실패</b>면 학교 PC에서 ntfy 연결이 막힌 경우입니다. "전송"인데 안 오면 휴대폰 앱의 채널 이름과 알림 권한 확인</td></tr>
+    <tr><td><b>알림이 두 번씩 옴</b></td><td>탬퍼몽키 대시보드에 같은 스크립트가 두 개 있는지 확인 → 하나 삭제</td></tr>
+    <tr><td><b>시간을 바꾸고 싶음</b></td><td>탬퍼몽키에서 코드를 열어 위쪽 <code>QUIET_START</code>(20), <code>QUIET_END</code>(7) 숫자만 바꾸고 <kbd>Ctrl</kbd>+<kbd>S</kbd></td></tr>
+  </table></div>
+  <div class="tip">경남교육청 업무포털(gne.eduptl.kr) 전용입니다. 업무용 PC 사용에 관한 소속 기관 정보보안 지침은 각자 확인해 주세요.</div>
+  <p style="font-family:var(--f-display);font-size:1.3rem;margin:20px 0 0">설치가 끝났습니다. 수고하셨습니다.</p>`}
+];
+
+const nav=document.getElementById('nav'),card=document.getElementById('card');
+function render(focus){
+  const n=STEPS.length,i=S.step;
+  nav.innerHTML=STEPS.map((s,k)=>`<button data-go="${k}" ${k===i?'aria-current="step"':''} class="${S.done[k]?'done':''}"><span class="dot">${S.done[k]?'✓':k+1}</span><span class="t">${s.t}</span></button>`).join('');
+  const s=STEPS[i];
+  card.innerHTML=`<span class="where">${i+1} / ${n} 단계 · ${where[s.w]}</span>${s.h()}
+    ${i<n-1?`<label class="check"><input type="checkbox" id="chk" ${S.done[i]?'checked':''}> 이 단계를 마쳤습니다</label>`:''}
+    <footer class="nav"><button class="btn ghost" id="prev" ${i===0?'hidden':''}>← 이전</button><span></span>
+    ${i<n-1?`<button class="btn" id="next">다음 단계 →</button>`:`<button class="btn ghost" id="restart">처음으로</button>`}</footer>`;
+  document.getElementById('bar').style.width=(Object.keys(S.done).filter(k=>S.done[k]).length/(n-1)*100)+'%';
+  const cv=document.getElementById('codeView');
+  if(cv){cv.innerHTML=esc(myCode()).replace(esc(S.topic),'<span class="hl">'+esc(S.topic)+'</span>');}
+  const qr=document.getElementById('qr');
+  if(qr&&window.QRCode){try{new QRCode(qr,{text:S.topic,width:150,height:150,colorDark:'#000000',colorLight:'#ffffff'});}catch(e){qr.remove();}}else if(qr){qr.parentElement.remove();}
+  if(focus){card.focus({preventScroll:true});window.scrollTo({top:0,behavior:'smooth'});}
+  save();
+}
+function go(k){S.step=Math.max(0,Math.min(STEPS.length-1,k));render(true);}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,input');if(!t)return;
+  if(t.dataset.go!==undefined)go(+t.dataset.go);
+  else if(t.id==='next'){S.done[S.step]=true;go(S.step+1);}
+  else if(t.id==='prev')go(S.step-1);
+  else if(t.id==='restart')go(0);
+  else if(t.id==='chk'){S.done[S.step]=t.checked;render();}
+  else if(t.dataset.copy)copy(t.dataset.copy,'주소를 복사했습니다');
+  else if(t.hasAttribute('data-copy-topic'))copy(S.topic,'채널 이름을 복사했습니다');
+  else if(t.id==='regen'){S.topic=makeTopic((document.getElementById('pre')||{}).value);render();toast('새 이름을 만들었습니다');}
+  else if(t.id==='apply'){S.topic=makeTopic(document.getElementById('pre').value);render();toast('이니셜을 넣었습니다');}
+  else if(t.dataset.phone){S.phone=t.dataset.phone;render();}
+  else if(t.id==='copyCode')copy(myCode(),'코드를 복사했습니다. 탬퍼몽키에 붙여 넣으세요');
+});
+render();
+})();
+</script>
+
+</body>
+</html>
