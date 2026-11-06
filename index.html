@@ -82,6 +82,8 @@ footer.nav{display:flex;justify-content:space-between;gap:10px;margin-top:24px;p
 .qrbox{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}
 .qr{background:#fff;padding:10px;border-radius:10px;line-height:0;border:1px solid var(--line)}
 .qr img,.qr canvas{width:150px;height:150px}
+.linkbtn{all:unset;cursor:pointer;text-decoration:underline;margin-left:6px;font-weight:500}
+.linkbtn:focus-visible{outline:2px solid var(--accent)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 18px;border-radius:9px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.on{opacity:1}
 .status{font-family:var(--f-mono);font-size:.82rem;background:#222;color:#fff;border-radius:8px;padding:10px 14px;line-height:1.6;display:inline-block;margin:0 0 14px}
@@ -113,7 +115,7 @@ footer.nav{display:flex;justify-content:space-between;gap:10px;margin-top:24px;p
 
 <script>
 (function(){
-const S={step:0,done:{},topic:'',phone:'android'};
+const S={step:0,done:{},topic:'',phone:'android',existing:false};
 try{Object.assign(S,JSON.parse(localStorage.getItem('gyeoljae-wiz')||'{}'));}catch(e){}
 function save(){try{localStorage.setItem('gyeoljae-wiz',JSON.stringify(S));}catch(e){}}
 
@@ -148,7 +150,7 @@ const STEPS=[
   </ol>
   <div class="tip">모두 무료입니다. 한 번 설치하면 새 기능이 생길 때 <b>저절로 업데이트</b>됩니다.</div>
   <div class="warn"><b>이미 쓰고 계신 분</b>(코드를 복사해서 붙여 넣었던 분)은 처음부터 할 필요 없습니다.
-    <div class="row" style="margin:8px 0 0"><button class="btn" data-go="6">기존 사용자 업데이트로 바로 가기 →</button></div></div>`},
+    <div class="row" style="margin:8px 0 0"><button class="btn" id="existingGo">기존 사용자 업데이트로 바로 가기 →</button></div></div>`},
 {t:'탬퍼몽키 설치',w:'pc',h:()=>`
   <h2>크롬에 탬퍼몽키를 설치합니다</h2>
   <p class="lead">탬퍼몽키는 업무포털을 열 때 알림 기능을 자동으로 켜 주는 크롬 확장 프로그램입니다.</p>
@@ -212,25 +214,28 @@ const STEPS=[
   <div class="warn"><b>알림이 안 오면</b> 휴대폰 앱의 채널 이름이 위 이름과 정확히 같은지 다시 확인해 주세요. 띄어쓰기나 대문자가 들어가면 다른 채널이 됩니다.</div>`},
 {t:'알림 기능 설치',w:'pc',h:()=>`
   <h2>알림 기능을 설치합니다</h2>
-  <p class="lead">코드를 복사할 필요가 없습니다. 버튼 하나로 설치되고, 앞으로 새 기능도 <b>저절로 업데이트</b>됩니다.</p>
+  <p class="lead">${S.existing?'예전처럼 코드를 복사할 필요가 없습니다. ':''}버튼 하나로 설치되고, 앞으로 새 기능도 <b>저절로 업데이트</b>됩니다.</p>
   <ol class="do">
     <li><div>아래 버튼을 누릅니다. 새 탭에 탬퍼몽키 설치 화면이 열립니다.
       <div class="row" style="margin-top:8px"><a class="btn" href="https://guronsanbamond.github.io/gyeoljae_alarm/gyeoljae-alarm.user.js" target="_blank" rel="noopener">알림 기능 설치하기 ↗</a></div></div></li>
-    <li><div>열린 화면 왼쪽 위의 <span class="ui">설치</span> 버튼을 누릅니다.<br>
-      <small style="color:var(--muted)">이미 쓰고 있던 분은 <b>재설치</b> 또는 <b>업데이트</b>라고 나옵니다. 그 버튼을 누르면 됩니다.</small></div></li>
+    <li><div>${S.existing
+      ?'열린 화면 왼쪽 위의 <span class="ui">재설치</span> 또는 <span class="ui">업데이트</span> 버튼을 누릅니다. (탬퍼몽키 버전에 따라 이름이 다릅니다)'
+      :'열린 화면 왼쪽 위의 <span class="ui">설치</span> 버튼을 누릅니다.'}</div></li>
     <li><div>설치 화면 탭은 닫아도 됩니다.</div></li>
   </ol>
   <div class="warn"><b>설치 화면 대신 코드 글자만 잔뜩 보이면</b> 탬퍼몽키가 설치되지 않았거나 ③단계 "사용 허용"이 꺼져 있는 것입니다. ②·③단계를 다시 확인해 주세요.</div>
-  <div class="tip"><b>이미 쓰고 있던 분</b>: 탬퍼몽키 대시보드에 "업무포털 결재 알림"이 <b>두 개</b> 보이면, 버전이 <b>2.0</b>인 것만 남기고 나머지는 삭제하세요. 하나만 있으면 그대로 두면 됩니다.</div>`},
+  ${S.existing?'<div class="tip">탬퍼몽키 대시보드에 "업무포털 결재 알림"이 <b>두 개</b> 보이면, 버전이 <b>2.0 이상</b>인 것만 남기고 나머지는 삭제하세요. 하나만 있으면 그대로 두면 됩니다.</div>':''}`},
 {t:'작동 확인',w:'pc',h:()=>`
   <h2>업무포털에서 작동을 확인합니다</h2>
   <ol class="do">
     <li><div>업무포털에 <b>평소처럼 로그인</b>합니다. (이미 열려 있으면 <kbd>F5</kbd>로 새로고침)</div></li>
     <li><div>메인 화면이 뜨고 약 5초 뒤, <b>오른쪽 아래에 검은 상자</b>가 나타나면 성공입니다.
       <div style="margin-top:8px"><span class="status">🔔 결재 알림 작동 중 (음성+휴대폰)<br>마지막 확인: 오전 9:02:15<br>해당 없음<br>로그인 연장: -<br>휴대폰 알림: -</span><br><small style="color:var(--muted)">↑ 이런 모양입니다 (예시)</small></div></div></li>
-    <li><div><b>처음 한 번만</b>: 상자 아래에 <b>"📱 휴대폰 채널 이름을 넣어 주세요"</b> 칸이 보입니다. 아래 버튼으로 내 채널 이름을 복사해 그 칸에 붙여 넣고(<kbd>Ctrl</kbd>+<kbd>V</kbd>) <span class="ui">저장</span>을 누릅니다.
-      <div class="row" style="margin-top:8px"><code class="big" style="font-size:1rem;margin:0;padding:8px 14px">${esc(S.topic)}</code><button class="btn" data-copy-topic>채널 이름 복사</button></div>
-      <small style="color:var(--muted)"><b>이미 쓰고 있던 분</b>은 위 이름이 아니라, 휴대폰 ntfy 앱 목록에 보이는 <b>원래 쓰던 이름</b>을 넣어야 합니다.</small></div></li>
+    ${S.existing
+      ?`<li><div><b>처음 한 번만</b>: 상자 아래에 <b>"📱 휴대폰 채널 이름을 넣어 주세요"</b> 칸이 보입니다. <b>원래 쓰던 채널 이름</b>을 넣고 <span class="ui">저장</span>을 누릅니다.
+      <div class="tip" style="margin:8px 0 0"><b>원래 쓰던 이름 찾기</b>: 휴대폰에서 <b>ntfy 앱</b>을 열면 첫 화면 목록에 보이는 굵은 <b>영어 이름</b>입니다. (예: gne-gyeoljae-ab12cd3)</div></div></li>`
+      :`<li><div><b>처음 한 번만</b>: 상자 아래에 <b>"📱 휴대폰 채널 이름을 넣어 주세요"</b> 칸이 보입니다. 아래 버튼으로 내 채널 이름을 복사해 그 칸에 붙여 넣고(<kbd>Ctrl</kbd>+<kbd>V</kbd>) <span class="ui">저장</span>을 누릅니다.
+      <div class="row" style="margin-top:8px"><code class="big" style="font-size:1rem;margin:0;padding:8px 14px">${esc(S.topic)}</code><button class="btn" data-copy-topic>채널 이름 복사</button></div></div></li>`}
     <li><div>저장하면 휴대폰에 <b>"결재 알림이 연결되었습니다."</b> 알림이 옵니다. 이 알림이 오면 모든 설정이 끝난 것입니다.</div></li>
     <li><div>화면 아무 곳이나 <b>한 번 클릭</b>합니다. 크롬 규칙상 클릭해야 음성이 나옵니다.</div></li>
   </ol>
@@ -268,7 +273,7 @@ function render(focus){
   const n=STEPS.length,i=S.step;
   nav.innerHTML=STEPS.map((s,k)=>`<button data-go="${k}" ${k===i?'aria-current="step"':''} class="${S.done[k]?'done':''}"><span class="dot">${S.done[k]?'✓':k+1}</span><span class="t">${s.t}</span></button>`).join('');
   const s=STEPS[i];
-  card.innerHTML=`<span class="where">${i+1} / ${n} 단계 · ${where[s.w]}</span>${s.h()}
+  card.innerHTML=`<span class="where">${i+1} / ${n} 단계 · ${where[s.w]}</span>${S.existing&&i>=6?' <span class="where" style="background:var(--warn-soft);color:var(--warn)">기존 사용자 업데이트 <button class="linkbtn" id="toNew">처음 설치라면 여기</button></span>':''}${s.h()}
     ${i<n-1?`<label class="check"><input type="checkbox" id="chk" ${S.done[i]?'checked':''}> 이 단계를 마쳤습니다</label>`:''}
     <footer class="nav"><button class="btn ghost" id="prev" ${i===0?'hidden':''}>← 이전</button><span></span>
     ${i<n-1?`<button class="btn" id="next">다음 단계 →</button>`:`<button class="btn ghost" id="restart">처음으로</button>`}</footer>`;
@@ -282,7 +287,9 @@ function go(k){S.step=Math.max(0,Math.min(STEPS.length-1,k));render(true);}
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,input');if(!t)return;
   if(t.dataset.go!==undefined)go(+t.dataset.go);
-  else if(t.id==='next'){S.done[S.step]=true;go(S.step+1);}
+  else if(t.id==='next'){if(S.step===0)S.existing=false;S.done[S.step]=true;go(S.step+1);}
+  else if(t.id==='existingGo'){S.existing=true;go(6);}
+  else if(t.id==='toNew'){S.existing=false;go(0);}
   else if(t.id==='prev')go(S.step-1);
   else if(t.id==='restart')go(0);
   else if(t.id==='chk'){S.done[S.step]=t.checked;render();}
