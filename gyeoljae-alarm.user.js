@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         업무포털 결재 알림
 // @namespace    gne-eduptl-alarm
-// @version      2.0
+// @version      2.1
 // @description  업무포털 메인 화면을 1분마다 확인해 결재·메모·메일 등이 있으면 PC 음성 안내(조용한 시간·공휴일 제외) + 휴대폰(ntfy) 알림(새로 생겼을 때 한 번)
 // @match        https://gne.eduptl.kr/bpm_man_mn00_001.do*
 // @grant        none
@@ -159,10 +159,12 @@
   setup.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid #555';
   setup.innerHTML =
     '<div style="color:#ffd54a;font-weight:700">📱 휴대폰 채널 이름을 넣어 주세요</div>' +
+    '<div style="font-size:12px;color:#ccc">이름이 틀리면 휴대폰에 알림이 오지 않습니다.</div>' +
     '<div style="font-size:12px;color:#ccc">휴대폰 ntfy 앱에 보이는 이름을 그대로 붙여 넣고 [저장]</div>' +
     '<input id="__montopic" type="text" placeholder="예: gne-gyeoljae-ab12cd3" autocomplete="off" ' +
     'style="margin-top:4px;width:220px;padding:3px 6px;border-radius:3px;border:1px solid #999;font-size:12px;color:#111;background:#fff">' +
     '<button data-act="savetopic" style="margin-left:4px;padding:2px 8px;border-radius:3px;border:1px solid #c9a400;background:#ffd54a;color:#111;cursor:pointer;font-size:12px;font-weight:700">저장</button>' +
+    '<button data-act="closetopic" style="margin-left:4px;padding:2px 8px;border-radius:3px;border:1px solid #999;background:#eee;color:#111;cursor:pointer;font-size:12px">닫기</button>' +
     '<div id="__monmsg" style="font-size:12px;color:#ff8a80"></div>';
   box.appendChild(info);
   box.appendChild(setup);
@@ -188,12 +190,12 @@
     btns += paused
       ? '<button data-act="resume" style="' + BTN + ';background:#7fd6b4;border-color:#3a9;font-weight:700">다시 시작</button>'
       : '<button data-act="stop" style="' + BTN + '">중지</button>';
-    btns += '<button data-act="settopic" style="' + BTN + '">채널 ' + (topic ? '변경' : '입력') + '</button>';
     info.innerHTML = mode +
       '<br>마지막 확인: ' + lastCheck +
       '<br>' + status +
       '<br>로그인 연장: ' + lastExt +
       '<br>휴대폰 알림: ' + lastPush +
+      (topic && setup.hidden ? ' <span data-act="settopic" style="color:#aaa;font-size:11px;text-decoration:underline;cursor:pointer">(휴대폰에 안 오면 누르세요)</span>' : '') +
       '<br>' + btns;
   }
 
@@ -210,7 +212,9 @@
         .then(r => { lastPush = new Date().toLocaleTimeString('ko-KR') + (r.ok ? ' 연결 시험 전송' : ' 실패'); render(); })
         .catch(() => { lastPush = '전송 실패'; render(); });
     } else if (act === 'settopic') {
-      showSetup(setup.hidden);
+      showSetup(true);
+    } else if (act === 'closetopic') {
+      if (topic) showSetup(false);
     } else if (act === 'ack') {           // 지금 건수까지는 확인한 것으로 기억
       ack = Object.assign({}, cur);
       saveAck();
